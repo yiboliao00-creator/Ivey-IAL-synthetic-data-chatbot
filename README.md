@@ -1,71 +1,115 @@
-# Ivey Synthetic Data App — Streamlit Cloud (Groq-ready)
+# Ivey Synthetic Data App — Streamlit Cloud (Free Groq Chatbot)
 
-This repo is ready to deploy on **Streamlit Community Cloud** with a **free Groq LLM** for the chatbot.
-It uses Groq in the cloud (if a key is provided) and falls back to local **Ollama** only for local development.
+This repo deploys a Streamlit app with:
+- **Tab 1:** AI Education Assistant (uses **Groq’s free tier** first; falls back to local **Ollama** for dev)
+- Data generator & Healthcare simulator tabs
 
-## Files
-- `ivey_synthetic_data_app.py` — main app (patched for Groq; local fallback to Ollama)
-- `ivey_synthetic_data_app_original.py` — original code (unchanged)
-- `requirements.txt` — Python dependencies (includes `langchain-groq` + `groq`)
-- `.streamlit/runtime.txt` — Python 3.11 pin for Streamlit Cloud
+## Repo layout
+- `ivey_synthetic_data_app.py` – main app (Groq-first, Ollama fallback)
+- `requirements.txt` – includes `langchain-groq` and `groq`
+- `.streamlit/runtime.txt` – pins Python 3.11 on Streamlit Cloud
 - `.gitignore`
 
 ---
 
-## Get a FREE API Key (Groq)
+## Quick start (Streamlit Community Cloud)
 
-1. Go to **https://console.groq.com/** and create/sign in to your account.
-2. In the left sidebar, click **API Keys** → **Create API Key**.
-3. Copy the key that looks like **`grq_XXXXXXXXXXXXXXXX`** and keep it safe.
-
-> Groq offers a *free tier* suitable for coursework. Quotas and availability can change—check their console/pricing for current limits.
-
-### Add the key to Streamlit Cloud (Secrets)
-1. Open your deployed app → click **Manage app** (bottom-left).
-2. Go to **Settings → Secrets**.
-3. Paste the following **TOML** and click **Save**:
-   ```toml
-   GROQ_API_KEY = "grq_XXXXXXXXXXXXXXXX"
-   ```
-4. Click **Reboot** to apply the secret.
-
-### (Optional) Use the key locally
-Create a file `.streamlit/secrets.toml` in your project with:
-```toml
-GROQ_API_KEY = "grq_XXXXXXXXXXXXXXXX"
-```
-Then run:
-```bash
-streamlit run ivey_synthetic_data_app.py
-```
+1. Push this folder to a **new GitHub repo**.
+2. Go to **https://share.streamlit.io** → **New app**.
+3. Select your repo, branch **`main`**.
+4. **Main file path:** `ivey_synthetic_data_app.py`.
+5. Click **Deploy**.
+6. Add a Groq key in **Manage app → Settings → Secrets** (see below), then **Reboot**.
 
 ---
 
-## Deploy on Streamlit Cloud
-1. Push this folder to a **new GitHub repo**.
-2. Visit **https://share.streamlit.io** → **New app**.
-3. Select your repo, branch **`main`**.
-4. **Main file path**: `ivey_synthetic_data_app.py`
-5. Click **Deploy**.
-6. Add the `GROQ_API_KEY` in Secrets (steps above) to enable the chatbot.
+## Get a **FREE** API key (Groq)
 
-## Local run (optional)
+1. Open **https://console.groq.com/** and sign in / create an account.  
+2. In the left sidebar, go to **API Keys** → **Create API Key**.  
+3. Copy the key that looks like `grq_...` (or `gsk_...`).
+
+### Add the key to Streamlit (Secrets)
+
+In your deployed app: **Manage app → Settings → Secrets** → paste TOML:
+
+```toml
+GROQ_API_KEY = "grq_XXXXXXXXXXXXXXXX"
+```
+
+Click **Save**, then **Reboot** the app.
+
+> Tip: If the app still shows an “AI Assistant Setup” message, use the app menu (⋮) → **Clear cache** and refresh.
+
+### (Optional) Use the key locally
+Create `.streamlit/secrets.toml` in the project:
+
+```toml
+GROQ_API_KEY = "grq_XXXXXXXXXXXXXXXX"
+```
+
+Run locally:
 ```bash
-python -m venv .venv && . .venv/Scripts/activate  # Windows
-# or: python3 -m venv .venv && source .venv/bin/activate  # macOS/Linux
+python -m venv .venv
+# Windows:   .\.venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run ivey_synthetic_data_app.py
 ```
 
-## Troubleshooting
-- **ModuleNotFoundError (langchain_groq / groq):** ensure `requirements.txt` includes both packages and redeploy.
-- **No Groq key found:** add `GROQ_API_KEY` in **Settings → Secrets** (TOML format).
-- **Rate limits / 429:** keep prompts concise; try again later.
-- **Prefer local Ollama:** on your laptop, run an Ollama server; the app will automatically use it if no Groq key is set.
+---
+
+## Requirements
+
+`requirements.txt` must include these (plus your other libs):
+
+```
+streamlit>=1.36
+pandas
+numpy
+plotly>=5.20
+scipy
+requests
+langchain-core
+langchain-community
+langchain-groq
+groq
+```
+
+The chatbot uses Groq’s **`llama-3.1-8b-instant`** with `temperature=0.2`, `max_tokens=512` by default.
 
 ---
 
-### Notes
-- Keep API keys private—never commit them to GitHub.
-- The chatbot uses Groq's `llama-3.1-8b-instant` model (`temperature=0.2`, `max_tokens=512`) by default.
-- Your original file is preserved as `ivey_synthetic_data_app_original.py` for reference.
+## Troubleshooting
+
+- **“AI Assistant Setup” card won’t go away**  
+  Add `GROQ_API_KEY` in **Secrets**, then **Reboot** (or **Clear cache**).  
+- **`ModuleNotFoundError: langchain_groq / groq`**  
+  Add both packages to `requirements.txt`, push, and redeploy.
+- **401/403**  
+  Key missing/invalid → paste the correct key in **Secrets**.
+- **429 (rate limit)**  
+  Keep questions short; try again later.
+- **App tries `localhost:11434`**  
+  That’s the Ollama fallback. Ensure `GROQ_API_KEY` is set so the app uses Groq on the cloud.
+
+---
+
+## (Optional) Local Ollama for development
+
+If you run Ollama on your laptop, the app will automatically use it **only when no Groq key is set** and the server is reachable:
+
+- Default host: `http://localhost:11434`  
+- To point elsewhere, set `OLLAMA_HOST` in your environment or in Streamlit **Secrets**:
+
+```toml
+OLLAMA_HOST = "http://127.0.0.1:11434"
+```
+
+---
+
+## Notes
+
+- **Never commit API keys** to Git—keep them in **Secrets**.
+- Your original behavior is preserved: Groq in the cloud, Ollama as a local fallback.
+- Python version is pinned via `.streamlit/runtime.txt` for reproducible builds.
