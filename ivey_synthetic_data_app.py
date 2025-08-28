@@ -354,51 +354,77 @@ st.markdown("""
 tab1, tab2, tab3 = st.tabs(["📚 AI Education Assistant", "🔧 Advanced Data Generator", "🏥 Healthcare Simulator"])
 
 # Tab 1: Educational Chatbot
+# --- Tab 1: Educational Chatbot ---
 with tab1:
     st.markdown("### 💬 Synthetic Data Education Assistant")
 
     try:
-        # Prefer a FREE cloud LLM on Streamlit Cloud (Groq) and fall back to local Ollama if available
+        import os, requests
         from langchain_core.messages import AIMessage, HumanMessage
 
-        @st.cache_resource
+        @st.cache_resource(show_spinner=False)
         def init_bot():
-            # Try Groq first (works on Streamlit Cloud)
+            """
+            Prefer a FREE cloud LLM (Groq) on Streamlit Cloud.
+            Fall back to local Ollama ONLY if reachable (for local dev).
+            """
+            # 1) Groq (free tier) — requires GROQ_API_KEY in Streamlit Secrets
             try:
                 from langchain_groq import ChatGroq
                 groq_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
                 if groq_key:
-                    return ChatGroq(model_name="llama-3.1-8b-instant", api_key=groq_key, temperature=0.2, max_tokens=512)
+                    return ChatGroq(
+                        model_name="llama-3.1-8b-instant",
+                        api_key=groq_key,
+                        temperature=0.2,
+                        max_tokens=512,
+                    )
             except Exception:
-                pass
+                pass  # if Groq libs aren't available / no key set, try Ollama
 
-            # Fall back to local Ollama for dev machines
+            # 2) Local Ollama (for laptops only)
             try:
                 from langchain_community.chat_models import ChatOllama
-                return ChatOllama(model="phi3:mini")
-            except Exception as e:
-                st.warning("No cloud key configured and Ollama is not reachable. Add GROQ_API_KEY in Secrets to enable the cloud chatbot.")
+                base = (
+                    st.secrets.get("OLLAMA_HOST")
+                    or os.getenv("OLLAMA_HOST")
+                    or "http://localhost:11434"
+                )
+                # Probe Ollama so cloud doesn't hang/error on localhost
+                requests.get(f"{base}/api/tags", timeout=1)
+                return ChatOllama(model="phi3:mini", base_url=base)
+            except Exception:
                 return None
 
         llm = init_bot()
-data generation techniques and algorithms</li>
+
+        if llm is not None:
+            # Intro box (HTML safely wrapped)
+            st.markdown(
+                """
+                <div class='info-box'>
+                  <strong>Welcome to the Ivey Synthetic Data Educational Assistant!</strong>
+                  <ul>
+                    <li>Data generation techniques and algorithms</li>
                     <li>Privacy preservation and data anonymization</li>
                     <li>Statistical validation and quality metrics</li>
                     <li>Real-world applications and case studies</li>
                     <li>Implementation best practices</li>
                     <li>Regulatory compliance and ethical considerations</li>
-                </ul>
-                Feel free to ask follow-up questions!
+                  </ul>
+                  Feel free to ask follow-up questions!
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                unsafe_allow_html=True,
+            )
 
+            # --- Chat history state ---
             if "chat_history" not in st.session_state:
                 st.session_state.chat_history = [
-                    AIMessage(
-                        content="Hello! I'm your synthetic data tutor. Ask me anything about privacy, generation, metrics, or applications!")
+                    AIMessage(content="Hello! I'm your synthetic data assistant. How can I help?")
                 ]
 
-            # Display chat history
+            # Display history
             for msg in st.session_state.chat_history:
                 if isinstance(msg, AIMessage):
                     with st.chat_message("assistant", avatar="🤖"):
@@ -407,85 +433,102 @@ data generation techniques and algorithms</li>
                     with st.chat_message("user", avatar="🧑"):
                         st.markdown(msg.content)
 
-            # Process pending question if exists
-            if st.session_state.pending_question:
+            # Process pending question (from suggested buttons)
+            if st.session_state.get("pending_question"):
                 question = st.session_state.pending_question
                 st.session_state.pending_question = None
-
                 st.session_state.chat_history.append(HumanMessage(content=question))
 
                 with st.chat_message("user", avatar="🧑"):
                     st.markdown(question)
-
                 with st.chat_message("assistant", avatar="🤖"):
                     with st.spinner("Thinking..."):
                         try:
-                            response = llm.invoke(st.session_state.chat_history)
-                            st.markdown(response.content)
-                            st.session_state.chat_history.append(AIMessage(content=response.content))
+                            resp = llm.invoke(st.session_state.chat_history)
+                            content = getattr(resp, "content", str(resp))
                         except Exception as e:
-                            st.error(f"Error generating response: {e}")
+                            content = f"Error generating response: {e}"
+                        st.markdown(content)
+                        st.session_state.chat_history.append(AIMessage(content=content))
 
             # Chat input
-            prompt = st.chat_input("Ask me anything about synthetic data...")
-            if prompt:
-                st.session_state.chat_history.append(HumanMessage(content=prompt))
+            user_q = st.chat_input("Ask me anything about synthetic data...")
+            if user_q:
+                st.session_state.chat_history.append(HumanMessage(content=user_q))
                 with st.chat_message("user", avatar="🧑"):
-                    st.markdown(prompt)
+                    st.markdown(user_q)
                 with st.chat_message("assistant", avatar="🤖"):
                     with st.spinner("Thinking..."):
                         try:
-                            response = llm.invoke(st.session_state.chat_history)
-                            st.markdown(response.content)
-                            st.session_state.chat_history.append(AIMessage(content=response.content))
+                            resp = llm.invoke(st.session_state.chat_history)
+                            content = getattr(resp, "content", str(resp))
                         except Exception as e:
-                            st.error(f"Error generating response: {e}")
+                            content = f"Error generating response: {e}"
+                        st.markdown(content)
+                        st.session_state.chat_history.append(AIMessage(content=content))
 
-            # Suggested questions
+            # Suggested questions (keep your UI)
             st.markdown("### 💡 Suggested Questions")
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
                 if st.button("What are GANs?", use_container_width=True, key="q1"):
-                    st.session_state.pending_question = "What are GANs and how do they work for synthetic data?"
+                    st.session_state.pending_question = (
+                        "What are GANs and how do they work for synthetic data?"
+                    )
                     st.rerun()
-
             with col2:
                 if st.button("Privacy techniques?", use_container_width=True, key="q2"):
-                    st.session_state.pending_question = "What privacy preservation techniques are used in synthetic data?"
+                    st.session_state.pending_question = (
+                        "What privacy preservation techniques are used in synthetic data?"
+                    )
                     st.rerun()
-
             with col3:
                 if st.button("Healthcare use cases?", use_container_width=True, key="q3"):
-                    st.session_state.pending_question = "What are the main use cases for synthetic data in healthcare?"
+                    st.session_state.pending_question = (
+                        "What are the main use cases for synthetic data in healthcare?"
+                    )
                     st.rerun()
-
             with col4:
-                if st.button("k-Anonymity vs l-Diversity?", use_container_width=True, key="q4"):
-                    st.session_state.pending_question = "What's the difference between k-anonymity and l-diversity? When should I use each?"
+                if st.button("K-Anonymity vs l-Diversity?", use_container_width=True, key="q4"):
+                    st.session_state.pending_question = (
+                        "What's the difference between k-anonymity and l-diversity? When should I use each?"
+                    )
                     st.rerun()
 
-            if st.button("🗑️ Clear Conversation", key="clear_chat"):
+            if st.button("🧹 Clear Conversation", key="clear_chat"):
                 st.session_state.chat_history = [
                     AIMessage(
-                        content="Hello! I'm your synthetic data tutor. Ask me anything about privacy, generation, metrics, or applications!")
+                        content=(
+                            "Hello! I'm your synthetic data tutor. "
+                            "Ask me anything about privacy, generation, metrics, or applications."
+                        )
+                    )
                 ]
                 st.rerun()
+
         else:
-            st.markdown("""
+            # Friendly guidance if neither Groq nor Ollama is usable
+            st.markdown(
+                """
                 <div class='info-box'>
-                <strong>AI Assistant Setup Required</strong><br>
-                To use the AI Education Assistant, please install Ollama:
-                <ol>
-                    <li>Install Ollama from <a href="https://ollama.ai">ollama.ai</a></li>
-                    <li>Run: <code>ollama pull phi3:mini</code></li>
-                    <li>Restart this application</li>
-                </ol>
-                The Data Generator and Healthcare Simulator will still work without Ollama.
+                  <strong>AI Assistant Setup</strong><br>
+                  This cloud deployment doesn't have a local Ollama server.<br><br>
+                  To enable the chatbot, add a FREE Groq key in <em>Manage app → Settings → Secrets</em>:
+                  <pre>GROQ_API_KEY = "grq_XXXXXXXXXXXXXXXX"</pre>
+                  After saving, click <em>Reboot</em>.<br><br>
+                  The Data Generator and Healthcare Simulator will still work without the AI assistant.
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                unsafe_allow_html=True,
+            )
+
     except ImportError:
-        st.warning("LangChain not available. Please install with: pip install langchain-community langchain-core")
+        st.warning(
+            "LangChain not available. Please add to requirements.txt: "
+            "langchain-core, langchain-community, langchain-groq, groq."
+        )
+
 
 # Tab 2: Advanced Synthetic Data Generator
 with tab2:
