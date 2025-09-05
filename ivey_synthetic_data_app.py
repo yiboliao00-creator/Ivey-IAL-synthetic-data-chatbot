@@ -1429,6 +1429,6 @@ st.markdown("""
         <p style='font-size: 0.9rem;'>© 2024 Advanced Synthetic Data Generation Platform | Educational Purpose Only</p>
         <p style='font-size: 0.8rem;'>Enhanced with AI-Powered Analysis, Privacy Risk Assessment & Healthcare Decision Support</p>
     </div>
-    """, unsafe_allow_html=True)import streamlit as st
+    """, unsafe_allow_html=True)
             
            
