@@ -951,7 +951,7 @@ with tab2:
                 miss = ", ".join([f"{k} ({v:.1%})" for k,v in list(qinfo["missing_cols"].items())[:8]])
                 bullets.append(f"- **Missing data** in: {miss}")
             if qinfo["high_corr_pairs"]:
-                pairs = ", ".join([f"{a}~{b} (r={r:.2f})" for a,b,r in qinfo["high_corr_pairs'][:6]])
+                pairs = ", ".join([f"{a}~{b} (r={r:.2f})" for a, b, r in qinfo["high_corr_pairs"][:6]])
             else:
                 pairs = "none"
             bullets.append(f"- **High correlations**: {pairs}")
