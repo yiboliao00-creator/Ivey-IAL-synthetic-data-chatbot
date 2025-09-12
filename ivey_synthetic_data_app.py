@@ -612,7 +612,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Create tabs
-tab1, tab2, tab3 = st.tabs(["📚 AI Education Assistant", "🔧 Advanced Data Generator", "🥼 Healthcare Simulator"])
+tab1, tab2 = st.tabs(["📚 AI Education Assistant", "🔧 Advanced Data Generator"])
 
 # Tab 1: Educational Chatbot
 with tab1:
@@ -792,10 +792,10 @@ with tab1:
 
 
 
-# ---------------------- TAB 2: PRIVACY-FIRST GENERATOR (FIXED MASKING + NO QUALITY TAB) ----------------------
+# ------------------ TAB 2: PRIVACY-FIRST SYNTHETIC GENERATOR (MORE METHODS + AI INSIGHTS + COMPARISON) ------------------
 with tab2:
     st.markdown("### 🔐→🧪 Privacy-First Synthetic Data Generator")
-    st.caption("Workflow: **Upload → (Optional) Privacy Protection → AI Analysis → Generate Synthetic → Compare**")
+    st.caption("Workflow: **Upload → (Optional) Privacy Protection → AI Insights → Generate Synthetic → Compare & Explain**")
 
     # ======================== 1) Upload ========================
     uploaded_file = st.file_uploader("Upload a CSV file (≤ 200MB)", type=["csv"])
@@ -803,14 +803,16 @@ with tab2:
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         st.success(f"Loaded {len(df):,} rows × {len(df.columns)} columns")
+
         st.markdown("#### 👀 Data Preview (Original)")
         st.dataframe(df.head(20), use_container_width=True)
 
-        # Initialize session state holders (persist across reruns)
-        if "protected_df" not in st.session_state:
-            st.session_state.protected_df = df.copy()
-        if "privacy_note" not in st.session_state:
-            st.session_state.privacy_note = "None"
+        # initialize persistent state
+        st.session_state.setdefault("protected_df", df.copy())
+        st.session_state.setdefault("privacy_note", "None")
+        st.session_state.setdefault("synthetic_data", None)
+        st.session_state.setdefault("generation_method", "—")
+        st.session_state.setdefault("privacy_level", "—")
 
         # ======================== 2) Basic Statistics (enhanced) ========================
         st.markdown("#### 📈 Basic Statistics (Original)")
@@ -818,7 +820,7 @@ with tab2:
         cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
         if num_cols:
-            desc = df[num_cols].describe().T
+            desc = df[num_cols].describe().T  # count, mean, std, min, 25%, 50%, 75%, max
             desc["mode"] = [df[c].mode(dropna=True).iloc[0] if not df[c].mode(dropna=True).empty else np.nan for c in desc.index]
             st.markdown("**Numeric columns**")
             st.dataframe(desc.round(3), use_container_width=True)
@@ -842,19 +844,18 @@ with tab2:
 
         guessed_id_cols = [c for c in df.columns if any(k in c.lower() for k in ["id", "name", "email", "phone", "address", "ssn"])]
 
-        # IMPORTANT: always start from ORIGINAL df when applying a new action,
-        # then persist the protected version in session_state.
+        # Always start from ORIGINAL when applying an action (idempotent)
         if privacy_choice == "Remove Identifiers":
             cols = st.multiselect("Columns to remove", options=df.columns.tolist(), default=guessed_id_cols)
             if st.button("🗑️ Apply Removal", use_container_width=True):
                 protected = df.drop(columns=[c for c in cols if c in df.columns])
                 st.session_state.protected_df = protected
-                st.session_state.privacy_note = f"Removed {len(cols)} identifiers: {', '.join(cols) if cols else '(none)'}"
+                st.session_state.privacy_note = f"Removed: {', '.join(cols) if cols else '(none)'}"
                 st.success("Identifiers removed. Protected dataset updated.")
         elif privacy_choice == "Mask Sensitive Columns":
             cols = st.multiselect("Columns to mask", options=df.columns.tolist(), default=guessed_id_cols)
             if st.button("🎭 Apply Masking", use_container_width=True):
-                protected = df.copy()  # always from ORIGINAL for idempotence
+                protected = df.copy()
                 for col in cols:
                     if col not in protected.columns:
                         continue
@@ -866,15 +867,15 @@ with tab2:
                             lambda x: (''.join([d for d in str(x) if d.isdigit()])[:3] + "-***-****") if isinstance(x, str) else x
                         )
                     elif "name" in low:
-                        protected[col] = protected[col].astype(str).apply(lambda x: x[:2] + "*" * max(0, len(str(x)) - 2))
+                        protected[col] = protected[col].astype(str).apply(lambda x: str(x)[:2] + "*" * max(0, len(str(x)) - 2))
                     elif "id" in low:
-                        protected[col] = protected[col].astype(str).apply(lambda x: x[:4] + "***")
+                        protected[col] = protected[col].astype(str).apply(lambda x: str(x)[:4] + "***")
                     elif "address" in low:
                         protected[col] = protected[col].astype(str).apply(lambda x: "***")
                     else:
                         protected[col] = protected[col].astype(str).apply(lambda x: "***" if len(str(x)) else x)
                 st.session_state.protected_df = protected
-                st.session_state.privacy_note = f"Masked columns: {', '.join(cols) if cols else '(none)'}"
+                st.session_state.privacy_note = f"Masked: {', '.join(cols) if cols else '(none)'}"
                 st.success("Masking applied. Protected dataset updated.")
         elif privacy_choice == "Add Noise to Numeric":
             noise_pct = st.slider("Noise level (as % of column std)", 1, 50, 10)
@@ -888,30 +889,29 @@ with tab2:
                 st.session_state.privacy_note = f"Added ~{noise_pct}% noise to numeric columns"
                 st.success("Noise added. Protected dataset updated.")
         else:
-            # None: ensure protected_df mirrors original (no protection)
             st.session_state.protected_df = df.copy()
             st.session_state.privacy_note = "None"
 
-        # Show what’s currently active in state
         st.markdown("#### 🔒 Protected Data (current)")
         st.caption(f"Active privacy action: **{st.session_state.privacy_note}**")
         st.dataframe(st.session_state.protected_df.head(12), use_container_width=True)
 
-        # ======================== 4) AI Analysis of Protected Data ========================
-        st.markdown("#### 🤖 AI Analysis of Your (Protected) Data")
+        # ======================== 4) AI Insights (recommends method & settings) ========================
+        st.markdown("#### 🤖 AI Insights & Recommendations")
 
         def quick_profile(df_: pd.DataFrame) -> dict:
             info = {"rows": len(df_), "cols": len(df_.columns)}
-            info["missing_cols"] = {c: float(df_[c].isna().mean()) for c in df_.columns if df_[c].isna().any()}
-            info["high_corr_pairs"] = []
+            info["missing"] = {c: float(df_[c].isna().mean()) for c in df_.columns if df_[c].isna().any()}
             nums = df_.select_dtypes(include=[np.number])
+            info["high_corr_pairs"] = []
             if not nums.empty:
                 corr = nums.corr().abs()
                 pairs = []
                 for i, c1 in enumerate(corr.columns):
                     for c2 in corr.columns[i+1:]:
-                        if corr.loc[c1, c2] >= 0.7:
-                            pairs.append((c1, c2, float(corr.loc[c1, c2])))
+                        val = float(corr.loc[c1, c2])
+                        if val >= 0.7:
+                            pairs.append((c1, c2, val))
                 info["high_corr_pairs"] = sorted(pairs, key=lambda x: -x[2])[:8]
             info["pii_cols"] = [c for c in df_.columns if any(k in c.lower() for k in ["name","email","phone","address","id","ssn"])]
             info["qid_cols"] = [c for c in df_.columns if any(k in c.lower() for k in ["age","city","postal","zip","gender","mortgage"])]
@@ -919,23 +919,25 @@ with tab2:
 
         qinfo = quick_profile(st.session_state.protected_df)
 
-        # Optional Groq LLM; fallback to rule-based summary
+        # Try Groq LLM; otherwise rule-based insight text
         ai_summary = None
         try:
             from langchain_groq import ChatGroq
             groq_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
             if groq_key:
-                llm = ChatGroq(model_name="llama-3.1-8b-instant", api_key=groq_key, temperature=0.2, max_tokens=500)
+                llm = ChatGroq(model_name="llama-3.1-8b-instant", api_key=groq_key, temperature=0.2, max_tokens=550)
                 prompt = (
-                    "You are a data privacy and synthetic data expert. "
-                    "Given the following dataset profile, summarize key issues in bullet points and recommend a generation method "
-                    "('Statistical Sampling' or 'Bootstrap'), whether to preserve correlations, and a privacy level (0-100). "
-                    f"\n\nPROFILE:\nRows: {qinfo['rows']}, Cols: {qinfo['cols']}\n"
-                    f"Missing cols (rate): {qinfo['missing_cols']}\n"
-                    f"High correlation pairs (>=0.7): {qinfo['high_corr_pairs']}\n"
-                    f"PII-like cols: {qinfo['pii_cols']}\n"
+                    "You are a synthetic data expert. Given the dataset profile, "
+                    "recommend a simple generation method among: "
+                    "['Statistical Sampling','Bootstrap','Permutation by Column','Stratified Sampling','Gaussian Jitter'] "
+                    "and explain why, whether to preserve correlations, and a noise level (0-100). "
+                    "Return short bullets.\n\n"
+                    f"PROFILE:\nRows: {qinfo['rows']}, Cols: {qinfo['cols']}\n"
+                    f"Missing: {qinfo['missing']}\n"
+                    f"High-corr pairs: {qinfo['high_corr_pairs']}\n"
+                    f"PII-like: {qinfo['pii_cols']}\n"
                     f"Quasi-IDs: {qinfo['qid_cols']}\n"
-                    f"Privacy action already applied: {st.session_state.privacy_note}\n"
+                    f"Privacy already applied: {st.session_state.privacy_note}\n"
                 )
                 ai_summary = llm.invoke(prompt).content
         except Exception:
@@ -945,82 +947,141 @@ with tab2:
             st.success("AI Recommendations")
             st.markdown(ai_summary)
         else:
+            # Rule-based recommendation
             bullets = []
             bullets.append(f"- **Shape**: {qinfo['rows']:,} rows × {qinfo['cols']} columns")
-            if qinfo["missing_cols"]:
-                miss = ", ".join([f"{k} ({v:.1%})" for k,v in list(qinfo["missing_cols"].items())[:8]])
+            if qinfo["missing"]:
+                miss = ", ".join([f"{k} ({v:.1%})" for k, v in list(qinfo["missing"].items())[:8]])
                 bullets.append(f"- **Missing data** in: {miss}")
             if qinfo["high_corr_pairs"]:
                 pairs = ", ".join([f"{a}~{b} (r={r:.2f})" for a, b, r in qinfo["high_corr_pairs"][:6]])
-            else:
-                pairs = "none"
-            bullets.append(f"- **High correlations**: {pairs}")
+                bullets.append(f"- **High correlations**: {pairs} → enable correlation preservation")
             if qinfo["pii_cols"]:
-                bullets.append(f"- **PII-like columns**: {', '.join(qinfo['pii_cols'])} (already protected or consider masking/removal)")
-            if qinfo["qid_cols"]:
-                bullets.append(f"- **Quasi-identifiers**: {', '.join(qinfo['qid_cols'])} (consider generalization/noise)")
-            bullets.append("- **Recommended**: Statistical Sampling; preserve correlations; synthetic noise level 60–75")
+                bullets.append(f"- **PII-like**: {', '.join(qinfo['pii_cols'])} → masking/removal recommended (done above)")
+            # Simple picker
+            if len(qinfo["high_corr_pairs"]) >= 1:
+                method_hint = "Stratified Sampling" if cat_cols else "Statistical Sampling"
+                bullets.append(f"- **Recommended method**: {method_hint}; preserve correlations")
+            else:
+                bullets.append("- **Recommended method**: Bootstrap (robust for small samples)")
+            bullets.append("- **Suggested synthetic noise level**: 60–75 (balance privacy vs utility)")
             st.info("AI-like Recommendations (offline)")
             st.markdown("\n".join(bullets))
 
-        # ======================== 5) Generate Synthetic (from PROTECTED or ORIGINAL) ========================
+        # ======================== 5) Generate Synthetic (more simple methods) ========================
         st.markdown("#### ⚙️ Generation Settings")
         left, right = st.columns(2)
         with left:
             n_samples = st.slider("Number of synthetic records", 100, 10000, 1000, step=100)
-            method = st.selectbox("Method", ["Statistical Sampling", "Bootstrap"])
+            method = st.selectbox(
+                "Method",
+                ["Statistical Sampling", "Bootstrap", "Permutation by Column", "Stratified Sampling", "Gaussian Jitter"],
+                help=(
+                    "• Statistical Sampling: sample each column independently\n"
+                    "• Bootstrap: sample whole rows\n"
+                    "• Permutation by Column: shuffle each column (destroys cross-correlation)\n"
+                    "• Stratified Sampling: sample within categories of a chosen key\n"
+                    "• Gaussian Jitter: sample rows, then jitter numeric columns"
+                )
+            )
         with right:
             preserve_corr = st.checkbox("Preserve numeric correlations (approx.)", True)
-            add_noise_syn = st.checkbox("Add statistical noise to synthetic", True)
+            add_noise_syn = st.checkbox("Add statistical noise to numeric", True)
             privacy_level = st.slider("Synthetic noise level (higher = more privacy)", 0, 100, 60)
 
-        def generate_synth(base_df: pd.DataFrame, n: int, method: str, preserve_corr: bool, add_noise: bool, lvl: int):
+        # optional key for stratification
+        strat_key = None
+        if method == "Stratified Sampling":
+            strat_key = st.selectbox("Stratify by (categorical key)", options=(cat_cols or ["(no categorical columns)"]))
+
+        def generate_synth(base_df: pd.DataFrame, n: int, method: str,
+                           preserve_corr: bool, add_noise: bool, lvl: int, strat_key: str | None):
             if base_df is None or base_df.empty:
                 return None
+
             rng = np.random.default_rng(42)
             num = base_df.select_dtypes(include=[np.number]).columns.tolist()
+            cat = [c for c in base_df.columns if c not in num]
 
             if method == "Bootstrap":
                 synth = base_df.sample(n=n, replace=True, random_state=42).reset_index(drop=True)
-            else:
+
+            elif method == "Statistical Sampling":
                 synth = pd.DataFrame(index=range(n))
                 for c in base_df.columns:
                     synth[c] = base_df[c].sample(n=n, replace=True, random_state=42).reset_index(drop=True)
+                if preserve_corr and len(num) >= 2:
+                    ref = num[0]
+                    order = np.argsort(np.argsort(base_df[ref].sample(n=n, replace=True, random_state=42).values))
+                    for c in num:
+                        synth[c] = np.array(synth[c])[order]
 
-            if preserve_corr and len(num) >= 2 and method == "Statistical Sampling":
-                ref = num[0]
-                order = np.argsort(np.argsort(base_df[ref].sample(n=n, replace=True, random_state=42).values))
+            elif method == "Permutation by Column":
+                # shuffle each column independently; keeps marginals, breaks dependency
+                synth = pd.DataFrame(index=range(len(base_df)))
+                for c in base_df.columns:
+                    synth[c] = base_df[c].sample(frac=1.0, random_state=42).reset_index(drop=True)
+                # up/downsample to n
+                synth = synth.sample(n=n, replace=True, random_state=42).reset_index(drop=True)
+
+            elif method == "Stratified Sampling" and strat_key in base_df.columns:
+                synth_parts = []
+                for level, grp in base_df.groupby(strat_key, dropna=False):
+                    frac = len(grp) / len(base_df)
+                    take = max(1, int(round(n * frac)))
+                    synth_parts.append(grp.sample(n=take, replace=True, random_state=42))
+                synth = pd.concat(synth_parts, axis=0, ignore_index=True)
+                if len(synth) > n:  # trim overshoot
+                    synth = synth.sample(n=n, random_state=42).reset_index(drop=True)
+
+            elif method == "Gaussian Jitter":
+                # row bootstrap + gaussian noise on numerics
+                synth = base_df.sample(n=n, replace=True, random_state=42).reset_index(drop=True)
                 for c in num:
-                    synth[c] = np.array(synth[c])[order]
+                    std = pd.to_numeric(base_df[c], errors="coerce").std()
+                    if pd.notna(std) and std > 0:
+                        synth[c] = pd.to_numeric(synth[c], errors="coerce") + rng.normal(0, std * 0.15, size=n)
 
+            else:
+                # fallback to simple bootstrap
+                synth = base_df.sample(n=n, replace=True, random_state=42).reset_index(drop=True)
+
+            # optional generic noise for privacy
             if add_noise and num:
                 scale = max(0.01, lvl / 300.0)  # 60 → ~0.20×std
                 for c in num:
                     col_std = pd.to_numeric(base_df[c], errors="coerce").std()
                     if pd.notna(col_std) and col_std > 0:
-                        synth[c] = pd.to_numeric(synth[c], errors="coerce") + rng.normal(0, col_std * scale, size=n)
+                        synth[c] = pd.to_numeric(synth[c], errors="coerce") + rng.normal(0, col_std * scale, size=len(synth))
+
+            # ensure dtypes roughly match
+            for c in cat:
+                if c in synth.columns:
+                    synth[c] = synth[c].astype(base_df[c].dtype if base_df[c].dtype.name != "category" else "object")
+
             return synth
 
         if st.button("🚀 Generate Synthetic Data", use_container_width=True):
-            # ALWAYS use the persisted protected_df (reflecting user's applied action)
             src = st.session_state.protected_df if st.session_state.privacy_note != "None" else df
             with st.spinner("Generating synthetic data..."):
-                st.session_state.synthetic_data = generate_synth(src, n_samples, method, preserve_corr, add_noise_syn, privacy_level)
+                st.session_state.synthetic_data = generate_synth(src, n_samples, method, preserve_corr,
+                                                                 add_noise_syn, privacy_level, strat_key)
             st.session_state.generation_method = method
             st.session_state.privacy_level = f"{st.session_state.privacy_note} + noise({privacy_level})" if add_noise_syn else st.session_state.privacy_note
             if st.session_state.synthetic_data is not None:
                 st.success(f"Generated {len(st.session_state.synthetic_data):,} synthetic rows.")
 
-    # ======================== 6) Results: Compare & Privacy Only (NO QUALITY TAB) ========================
+    # ======================== 6) Results: Preview • Comparison • Privacy ========================
     if st.session_state.get("synthetic_data") is not None and df is not None:
         st.markdown("---")
         tabs = st.tabs([
             "📊 Synthetic Preview",
             "🆚 Comparison Dashboard",
-            "🛡️ Privacy Dashboard"
+            "🛡️ Privacy Dashboard",
+            "📝 Why This Synthetic Works"
         ])
 
-        # Preview
+        # ---------- Preview ----------
         with tabs[0]:
             st.markdown("#### 📊 Synthetic Data (first 25 rows)")
             st.dataframe(st.session_state.synthetic_data.head(25), use_container_width=True)
@@ -1031,7 +1092,7 @@ with tab2:
             csv = st.session_state.synthetic_data.to_csv(index=False)
             st.download_button("📥 Download CSV", csv, f"synthetic_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True)
 
-        # Comparison Dashboard
+        # ---------- Comparison (side-by-side + column summary) ----------
         with tabs[1]:
             st.markdown("#### 🆚 Side-by-Side Comparison (Original vs Synthetic)")
             synth = st.session_state.synthetic_data.copy()
@@ -1076,7 +1137,7 @@ with tab2:
                 return pd.DataFrame(rows)
             st.dataframe(cmp_table(df, synth), use_container_width=True)
 
-        # Privacy Dashboard (heuristics only)
+        # ---------- Privacy Dashboard (heuristics) ----------
         with tabs[2]:
             st.markdown("#### 🛡️ Privacy Dashboard")
             orig = df.copy(); synth = st.session_state.synthetic_data.copy()
@@ -1110,7 +1171,44 @@ with tab2:
                 "overall_privacy_risk": overall
             })
             st.info("Heuristic estimates for demo purposes (not a formal DP guarantee).")
+
+        # ---------- Why This Synthetic Works (auto-explanation) ----------
+        with tabs[3]:
+            st.markdown("#### 📝 Why This Synthetic Works For Our Case")
+            # Build short justification using quick metrics
+            synth = st.session_state.synthetic_data
+            num_eval = [c for c in df.select_dtypes(include=[np.number]).columns if c in synth.columns]
+            ks_rows = []
+            for c in num_eval:
+                try:
+                    ks = stats.ks_2samp(df[c].dropna(), synth[c].dropna())
+                    ks_rows.append((c, float(ks.statistic), float(ks.pvalue)))
+                except Exception:
+                    pass
+            corr_err = np.nan
+            if num_eval:
+                try:
+                    co = df[num_eval].corr()
+                    cs = synth[num_eval].corr()
+                    corr_err = float((co - cs).abs().mean().mean())
+                except Exception:
+                    corr_err = np.nan
+
+            # make a concise narrative
+            bullets = []
+            bullets.append(f"- **Generation method**: {st.session_state.get('generation_method','—')} with privacy setting **{st.session_state.get('privacy_level','—')}**.")
+            if ks_rows:
+                good = sum(1 for _, _, p in ks_rows if p > 0.05)
+                bullets.append(f"- **Distribution fidelity**: {good}/{len(ks_rows)} numeric columns show no significant difference (K-S p>0.05).")
+            if not np.isnan(corr_err):
+                bullets.append(f"- **Correlation preservation**: mean |Δr| ≈ `{corr_err:.3f}` — patterns broadly retained for analysis.")
+            bullets.append("- **Direct identifiers** handled via your privacy action above (removed/masked/noised), reducing re-identification risk.")
+            bullets.append("- **Why suitable**: preserves high-level trends and relationships needed for teaching/analysis and scenario testing, "
+                           "while avoiding exposure of real records. Good for dashboards, prototyping models, and sharing across teams.")
+
+            st.markdown("\n".join(bullets))
 # -------------------------------- END TAB 2 --------------------------------
+
 
 
 # Footer
@@ -1119,7 +1217,9 @@ st.markdown("""
     <div style='text-align: center; color: #666; padding: 1rem;'>
         <p>🎓 Developed for Ivey Business School - University of Western Ontario</p>
         <p style='font-size: 0.9rem;'>© 2024 Advanced Synthetic Data Generation Platform | Educational Purpose Only</p>
-        <p style='font-size: 0.8rem;'>Enhanced with AI-Powered Analysis, Privacy Risk Assessment & Healthcare Decision Support</p>
+
+        
+        <p style='font-size: 0.8rem;'>Enhanced with AI-Powered Analysis, Privacy Risk Assessment </p>
     </div>
     """, unsafe_allow_html=True)
             
