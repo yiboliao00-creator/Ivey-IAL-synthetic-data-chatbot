@@ -612,7 +612,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Create tabs
-tab1, tab2 = st.tabs(["📚 AI Education Assistant", "🔧 Advanced Data Generator"])
+tab1, tab2, tab3 = st.tabs(["📚 AI Education Assistant", "🔧 Advanced Data Generator" , "Heathcare"])
 
 # Tab 1: Educational Chatbot
 with tab1:
@@ -1210,18 +1210,17 @@ with tab2:
 # -------------------------------- END TAB 2 --------------------------------
 # Tab 3: Healthcare Simulator
 with tab3:
-    st.markdown("### 🥼 Markham Hospital Intelligent Simulation Platform")
+    st.markdown("### 🏥 Markham Hospital Synthetic Data Simulator")
     st.markdown("""
         <div class='info-box'>
-        <strong>Welcome, Healthcare Administrator!</strong><br>
-        This AI-enhanced simulation tool helps you generate synthetic healthcare data for operational planning, 
-        scenario analysis, and decision support. All data is HIPAA-compliant and includes intelligent insights 
-        to guide your management decisions.
+        <strong>Welcome, Markham Hospital Administrator!</strong><br>
+        This specialized tool helps generate synthetic healthcare data for operational simulations and planning.
+        All generated data is completely synthetic and HIPAA-compliant.
         </div>
         """, unsafe_allow_html=True)
-    
+
     col1, col2, col3 = st.columns([1, 1, 1])
-    
+
     with col1:
         st.markdown("#### 🎯 Simulation Scenario")
         scenario = st.selectbox(
@@ -1229,80 +1228,65 @@ with tab3:
             ["Emergency Department Flow", "Patient Admission Patterns", "Surgery Scheduling",
              "Bed Occupancy Optimization", "Staff Scheduling", "Equipment Utilization"]
         )
-        
-        # Scenario-specific description
-        scenario_descriptions = {
-            "Emergency Department Flow": "Optimize patient flow through ED, reduce wait times, and improve triage efficiency",
-            "Patient Admission Patterns": "Analyze admission trends, predict peak periods, and optimize resource allocation",
-            "Surgery Scheduling": "Improve OR utilization, reduce cancellations, and optimize surgical team schedules",
-            "Bed Occupancy Optimization": "Maximize bed utilization while maintaining quality care and patient satisfaction",
-            "Staff Scheduling": "Balance staff workload, reduce overtime costs, and ensure adequate coverage",
-            "Equipment Utilization": "Track equipment usage, predict maintenance needs, and optimize procurement"
-        }
-        
-        st.info(f"📋 {scenario_descriptions.get(scenario, '')}")
-        
+
         simulation_period = st.selectbox(
             "Simulation Period",
             ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year"]
         )
-        
+
         department = st.multiselect(
             "Departments",
             ["Emergency", "ICU", "Surgery", "Cardiology", "Pediatrics", "Oncology", "General Medicine"],
             default=["Emergency"]
         )
-    
+
     with col2:
-        st.markdown("#### 📊 Simulation Parameters")
+        st.markdown("#### 📊 Data Parameters")
         num_patients = st.number_input("Number of Patients", 100, 50000, 5000)
-        
+
         age_distribution = st.selectbox(
             "Age Distribution",
             ["Markham Demographics", "Uniform", "Elderly Focused", "Pediatric Focused"]
         )
-        
+
         complexity_mix = st.select_slider(
             "Case Complexity Mix",
             options=["Simple", "Moderate", "Complex", "Critical"],
             value="Moderate"
         )
-        
+
         seasonal_pattern = st.checkbox("Include seasonal patterns", value=True)
         include_covid = st.checkbox("Include COVID-19 impact modeling", value=False)
-        enable_ai_insights = st.checkbox("🤖 Enable AI-Powered Insights", value=True, 
-                                         help="Get intelligent recommendations based on simulation results")
-    
+
     with col3:
         st.markdown("#### 🎲 Advanced Settings")
-        
+
         wait_time_target = st.slider("Target Wait Time (minutes)", 15, 180, 60)
         bed_utilization = st.slider("Target Bed Utilization (%)", 50, 95, 80)
         staff_ratio = st.slider("Staff to Patient Ratio", 0.1, 1.0, 0.3)
-        
+
         include_costs = st.checkbox("Include cost analysis", value=True)
         include_outcomes = st.checkbox("Include patient outcomes", value=True)
-        include_predictions = st.checkbox("Generate predictive analytics", value=True)
-    
+
     # Generate Healthcare Data
-    if st.button("🏥 Run Intelligent Healthcare Simulation", use_container_width=True):
-        with st.spinner("Generating Markham Hospital simulation with AI insights..."):
-            
+    if st.button("🏥 Generate Healthcare Simulation Data", use_container_width=True):
+        with st.spinner("Generating Markham Hospital simulation data..."):
+
             # Generate synthetic patient data
             np.random.seed(42)
-            
+
             # Date range based on simulation period
             period_days = {"1 Week": 7, "1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365}
             days = period_days[simulation_period]
-            
+
             dates = pd.date_range(start=datetime.now(), periods=num_patients, freq=f'{24 * days / num_patients}H')
-            
+
             # Age distribution for Markham
             if age_distribution == "Markham Demographics":
                 ages = np.concatenate([
                     np.random.normal(35, 15, int(num_patients * 0.3)),  # Young adults
                     np.random.normal(55, 10, int(num_patients * 0.4)),  # Middle age
-                    np.random.normal(70, 10, int(num_patients * 0.3))   # Elderly
+                    np.random.normal(70, 10, int(num_patients * 0.3))  # Elderly
                 ])
             elif age_distribution == "Elderly Focused":
                 ages = np.random.normal(70, 15, num_patients)
@@ -1310,9 +1294,9 @@ with tab3:
                 ages = np.random.normal(8, 5, num_patients)
             else:
                 ages = np.random.uniform(1, 90, num_patients)
-            
+
             ages = np.clip(ages, 1, 100).astype(int)[:num_patients]
-            
+
             # Generate healthcare data
             healthcare_data = pd.DataFrame({
                 'PatientID': [f'MH{str(i).zfill(6)}' for i in range(1, num_patients + 1)],
@@ -1331,41 +1315,35 @@ with tab3:
                 'LabTests': np.random.poisson(5, num_patients),
                 'Medications': np.random.poisson(4, num_patients)
             })
-            
+
             if include_covid:
                 healthcare_data['COVID_Status'] = np.random.choice(['Negative', 'Positive', 'Unknown'],
                                                                    num_patients, p=[0.85, 0.10, 0.05])
-            
+
             if include_costs:
                 base_cost = np.random.gamma(2, 1000, num_patients)
                 healthcare_data['TotalCost'] = base_cost * (1 + healthcare_data['LengthOfStay'] * 0.3)
                 healthcare_data['TotalCost'] = healthcare_data['TotalCost'].round(2)
-            
+
             if include_outcomes:
                 healthcare_data['Outcome'] = np.random.choice(['Discharged', 'Admitted', 'Transferred', 'Other'],
                                                               num_patients, p=[0.7, 0.2, 0.08, 0.02])
                 healthcare_data['Readmission30Day'] = np.random.choice([0, 1], num_patients, p=[0.85, 0.15])
-            
+
             # Add seasonal patterns
             if seasonal_pattern:
                 seasonal_factor = np.sin(np.arange(num_patients) * 2 * np.pi / (num_patients / 4)) * 0.3 + 1
                 healthcare_data['WaitTime'] = healthcare_data['WaitTime'] * seasonal_factor
-            
+
             st.success(f"✅ Generated {num_patients} synthetic patient records for Markham Hospital!")
-            
-            # Generate AI insights if enabled
-            ai_insights = None
-            if enable_ai_insights:
-                with st.spinner("🤖 Generating AI-powered insights..."):
-                    ai_insights = generate_healthcare_simulation_insights(healthcare_data, scenario)
-            
-            # Display results with enhanced tabs
-            tab_preview, tab_stats, tab_viz, tab_ai_insights, tab_recommendations, tab_privacy = st.tabs(
-                ["📋 Preview", "📊 Statistics", "📈 Visualizations", "🤖 AI Insights", "💡 Recommendations", "🔐 Privacy Check"])
-            
+
+            # Display results
+            tab_preview, tab_stats, tab_viz, tab_insights, tab_privacy = st.tabs(
+                ["Preview", "Statistics", "Visualizations", "Insights", "Privacy Check"])
+
             with tab_preview:
                 st.dataframe(healthcare_data.head(100), use_container_width=True)
-                
+
                 csv = healthcare_data.to_csv(index=False)
                 st.download_button(
                     label="📥 Download Markham Hospital Simulation Data",
@@ -1373,7 +1351,7 @@ with tab3:
                     file_name=f"markham_hospital_simulation_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv"
                 )
-            
+
             with tab_stats:
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -1385,7 +1363,7 @@ with tab3:
                 with col4:
                     if include_costs:
                         st.metric("Avg Cost per Patient", f"${healthcare_data['TotalCost'].mean():.2f}")
-                
+
                 # Department statistics
                 st.markdown("#### Department Statistics")
                 dept_stats = healthcare_data.groupby('Department').agg({
@@ -1395,7 +1373,7 @@ with tab3:
                 }).round(1)
                 dept_stats.columns = ['Patient Count', 'Avg Wait Time (min)', 'Avg LOS (days)']
                 st.dataframe(dept_stats, use_container_width=True)
-            
+
             with tab_viz:
                 # Wait time distribution
                 fig1 = px.histogram(healthcare_data, x='WaitTime', nbins=30,
@@ -1403,13 +1381,13 @@ with tab3:
                                     labels={'WaitTime': 'Wait Time (minutes)', 'count': 'Number of Patients'})
                 fig1.update_traces(marker_color='#00693e')
                 st.plotly_chart(fig1, use_container_width=True)
-                
+
                 # Department volume
                 dept_counts = healthcare_data['Department'].value_counts()
                 fig2 = px.pie(values=dept_counts.values, names=dept_counts.index,
                               title='Patient Distribution by Department')
                 st.plotly_chart(fig2, use_container_width=True)
-                
+
                 # Time series of admissions
                 daily_admissions = healthcare_data.groupby(healthcare_data['AdmissionDate'].dt.date).size()
                 fig3 = px.line(x=daily_admissions.index, y=daily_admissions.values,
@@ -1417,129 +1395,71 @@ with tab3:
                                labels={'x': 'Date', 'y': 'Number of Admissions'})
                 fig3.update_traces(line_color='#00693e')
                 st.plotly_chart(fig3, use_container_width=True)
-            
-            with tab_ai_insights:
-                if ai_insights:
-                    st.markdown("#### 🤖 AI-Powered Operational Analysis")
-                    
-                    # Operational Metrics
-                    st.markdown("##### 📊 Key Performance Indicators")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if 'avg_wait_time' in ai_insights['operational_metrics']:
-                            wait_status = "🟢" if ai_insights['operational_metrics']['avg_wait_time'] < 60 else "🟡" if ai_insights['operational_metrics']['avg_wait_time'] < 120 else "🔴"
-                            st.metric("Average Wait Time", 
-                                     f"{ai_insights['operational_metrics']['avg_wait_time']:.1f} min",
-                                     delta=f"{wait_status} Target: {wait_time_target} min")
-                    with col2:
-                        if 'avg_los' in ai_insights['operational_metrics']:
-                            los_status = "🟢" if ai_insights['operational_metrics']['avg_los'] < 3 else "🟡" if ai_insights['operational_metrics']['avg_los'] < 5 else "🔴"
-                            st.metric("Average Length of Stay",
-                                     f"{ai_insights['operational_metrics']['avg_los']:.1f} days",
-                                     delta=f"{los_status} Industry avg: 3.5 days")
-                    with col3:
-                        if 'p95_wait_time' in ai_insights['operational_metrics']:
-                            st.metric("95th Percentile Wait Time",
-                                     f"{ai_insights['operational_metrics']['p95_wait_time']:.1f} min")
-                    
-                    # Bottlenecks
-                    if ai_insights['bottlenecks']:
-                        st.markdown("##### 🚨 Identified Bottlenecks")
-                        for bottleneck in ai_insights['bottlenecks']:
-                            severity_color = {'High': '🔴', 'Medium': '🟡', 'Low': '🟢'}
-                            st.warning(f"{severity_color.get(bottleneck['severity'], '⚪')} **{bottleneck['area']}**: {bottleneck['issue']}")
-                            st.caption(f"Impact: {bottleneck['impact']}")
-                    
-                    # Cost Analysis
-                    if ai_insights['cost_analysis']:
-                        st.markdown("##### 💰 Financial Analysis")
-                        if 'total_cost' in ai_insights['cost_analysis']:
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.metric("Total Simulation Cost", 
-                                         f"${ai_insights['cost_analysis']['total_cost']:,.2f}")
-                            with col2:
-                                st.metric("Average Cost per Patient",
-                                         f"${ai_insights['cost_analysis']['avg_cost_per_patient']:,.2f}")
-                    
-                    # Predictive Insights
-                    if ai_insights['predictive_insights']:
-                        st.markdown("##### 🔮 Predictive Analytics")
-                        for prediction in ai_insights['predictive_insights']:
-                            st.info(f"**{prediction['metric']}**: {prediction['value']} - {prediction['recommendation']}")
-                else:
-                    st.info("Enable AI-Powered Insights in the settings to get intelligent recommendations")
-            
-            with tab_recommendations:
-                st.markdown("#### 💡 Strategic Recommendations")
-                
-                if ai_insights:
-                    # Staff Recommendations
-                    if ai_insights['staff_recommendations']:
-                        st.markdown("##### 👥 Staffing Optimization")
-                        staff_df = pd.DataFrame(ai_insights['staff_recommendations'])
-                        st.dataframe(staff_df, use_container_width=True)
-                    
-                    # Optimization Opportunities
-                    if ai_insights['optimization_opportunities']:
-                        st.markdown("##### 🎯 Improvement Opportunities")
-                        for opp in ai_insights['optimization_opportunities']:
-                            with st.expander(f"📈 {opp['opportunity']}"):
-                                st.write(f"**Potential Impact:** {opp.get('potential_impact', 'N/A')}")
-                                if 'potential_savings' in opp:
-                                    st.write(f"**Estimated Savings:** {opp['potential_savings']}")
-                                st.write(f"**Implementation:** {opp['implementation']}")
-                
-                # Scenario-specific recommendations
-                st.markdown("##### 📋 Scenario-Specific Actions")
-                scenario_actions = {
-                    "Emergency Department Flow": [
-                        "Implement triage nurse practitioner role for Triage 4-5 patients",
-                        "Create fast-track area for minor injuries",
-                        "Deploy mobile registration teams during peak hours"
-                    ],
-                    "Bed Occupancy Optimization": [
-                        "Implement early discharge planning protocols",
-                        "Create swing beds for flexible capacity",
-                        "Deploy predictive bed management system"
-                    ],
-                    "Staff Scheduling": [
-                        "Implement self-scheduling system for nursing staff",
-                        "Create float pool for high-demand periods",
-                        "Deploy AI-based demand forecasting"
-                    ]
-                }
-                
-                if scenario in scenario_actions:
-                    for action in scenario_actions[scenario]:
-                        st.write(f"• {action}")
-            
+
+            with tab_insights:
+                st.markdown("#### 🔍 Key Insights for Markham Hospital")
+
+                st.markdown(f"""
+                <div class='metric-card'>
+                <h4>Operational Efficiency</h4>
+                <ul>
+                <li>Current average wait time: {healthcare_data['WaitTime'].mean():.1f} minutes</li>
+                <li>Peak admission hours identified for optimal staffing</li>
+                <li>Bed turnover rate: {num_patients / (days * bed_utilization / 100):.1f} patients/day</li>
+                </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class='metric-card'>
+                <h4>Resource Planning Recommendations</h4>
+                <ul>
+                <li>Increase {department[0]} staff during peak hours (2-6 PM)</li>
+                <li>Consider adding {int(num_patients * 0.05)} overflow beds for surge capacity</li>
+                <li>Optimize lab processing to reduce overall length of stay</li>
+                </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if include_costs:
+                    total_cost = healthcare_data['TotalCost'].sum()
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>Financial Impact</h4>
+                    <ul>
+                    <li>Total simulated healthcare costs: ${total_cost:,.2f}</li>
+                    <li>Average cost per patient: ${healthcare_data['TotalCost'].mean():,.2f}</li>
+                    <li>Potential savings from 10% LOS reduction: ${total_cost * 0.15:,.2f}</li>
+                    </ul>
+                    </div>
+                    """, unsafe_allow_html=True)
+
             with tab_privacy:
-                st.markdown("#### 🔐 Healthcare Data Privacy Assessment")
-                
+                st.markdown("#### 🔒 Healthcare Data Privacy Assessment")
+
                 # Healthcare-specific privacy checks
                 st.markdown("##### HIPAA Compliance Check")
-                
+
                 hipaa_identifiers = ['PatientID']  # In real scenario, would check for more identifiers
-                
+
                 compliance_score = 100  # Start at 100%
                 compliance_issues = []
-                
+
                 # Check for direct identifiers
                 if 'SSN' in healthcare_data.columns or 'SocialSecurity' in healthcare_data.columns:
                     compliance_score -= 30
                     compliance_issues.append("❌ Social Security Numbers detected")
-                
+
                 # Check for quasi-identifiers combination
                 if len(healthcare_data[['Age', 'Gender']].drop_duplicates()) / len(healthcare_data) > 0.8:
                     compliance_score -= 10
                     compliance_issues.append("⚠️ High uniqueness in Age+Gender combination")
-                
+
                 # Date precision check
                 if healthcare_data['AdmissionDate'].dt.time.nunique() > 24:
                     compliance_score -= 5
                     compliance_issues.append("⚠️ High precision timestamps may increase identification risk")
-                
+
                 # Display compliance results
                 compliance_color = 'green' if compliance_score > 90 else 'orange' if compliance_score > 70 else 'red'
                 st.markdown(f"""
@@ -1548,14 +1468,14 @@ with tab3:
                 <h3 style='color: {compliance_color}; margin: 0;'>HIPAA Compliance Score: {compliance_score}%</h3>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
                 if compliance_issues:
                     st.markdown("##### 🚨 Compliance Issues Found:")
                     for issue in compliance_issues:
                         st.write(f"• {issue}")
                 else:
                     st.success("✅ No major HIPAA compliance issues detected in synthetic data")
-                
+
                 # Safe Harbor compliance check
                 st.markdown("##### Safe Harbor Compliance")
                 safe_harbor_compliant = True
@@ -1563,12 +1483,11 @@ with tab3:
                     # Check if IDs are properly anonymized (synthetic)
                     if not all(healthcare_data['PatientID'].str.startswith('MH')):
                         safe_harbor_compliant = False
-                
+
                 if safe_harbor_compliant:
                     st.success("✅ Data meets Safe Harbor de-identification standards")
                 else:
                     st.warning("⚠️ Review identifiers for Safe Harbor compliance")
-
 
 # Footer
 st.markdown("---")
